@@ -1,0 +1,87 @@
+name: Python for Embed Release Version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * *'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        name: [python]
+        version: ['3.11', '3.12']
+        latest_version: ['3.12']
+    steps:
+      - name: Get version
+        run: |
+          $json = Invoke-RestMethod -Uri https://github.com/docker-library/python/raw/refs/heads/master/versions.json
+          $version = $json.${{ matrix.version }}.version
+          Write-Output "version=$version" >> $env:GITHUB_ENV
+          Write-Output "tag=v$version" >> $env:GITHUB_ENV
+          Write-Output "Current version is $version"
+
+      - name: Check Release
+        run: |
+          if gh release view ${{ env.version }} -R ${{ github.repository }} > /dev/null 2>&1; then
+            echo "Release ${{ env.version }} already exists."
+            exit 1
+          else
+            echo "Release ${{ env.version }} does not exist. Continuing with the build."
+          fi
+        shell: bash
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          path: main
+
+      - name: Checkout CPython
+        uses: actions/checkout@v4
+        with:
+          repository: python/cpython
+          ref: ${{ env.tag }}
+          path: cpython
+
+      - name: Reset Config
+        run: |
+          sed -i 's@ --dirty@@g' PCbuild/pythoncore.vcxproj
+          sed -i 's@--precompile@--precompile --include-pip --include-tcltk@g' Tools/msi/make_zip.proj
+          cat Tools/msi/make_zip.proj | grep 'stable'
+        shell: bash
+        working-directory: cpython
+
+      - name: Create embed layout
+        run: |
+          Tools\\msi\\buildrelease.bat -x64 --skip-doc --skip-pgo --skip-msi --skip-nuget
+        working-directory: cpython
+
+      - name: Move embed layout
+        run: |
+          $source = 'cpython\\PCbuild\\amd64\\en-us'
+          $destination = 'main\\dist'
+          Move-Item -Path $source -Destination $destination -Force
+
+      - name: Create Tag
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git tag -a ${{ env.version }} -m "Release Version ${{ env.version }}" || true
+          git push origin ${{ env.version }} || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: main
+
+      - name: Create Release
+        run: |
+          latestFlag=""
+          if [ "${{ env.version }}" != "${{ matrix.latest_version }}" ]; then
+            latestFlag="--latest=false"
+          fi
+          gh release create ${{ env.version }} -R ${{ github.repository}} --notes "Python for Stable Release ${{ env.version }}" $latestFlag || true
+          gh release upload ${{ env.version }} -R ${{ github.repository}} dist/*.zip
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: main

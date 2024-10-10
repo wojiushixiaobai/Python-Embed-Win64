@@ -11,8 +11,8 @@ jobs:
     strategy:
       matrix:
         name: [python]
-        version: ['3.11', '3.12']
-        latest_version: ['3.12']
+        version: ['3.11', '3.12', '3.13']
+        latest_version: ['3.13']
     steps:
       - name: Get version
         run: |
@@ -24,20 +24,22 @@ jobs:
 
       - name: Check Release
         run: |
-          if gh release view ${{ env.version }} -R ${{ github.repository }} > /dev/null 2>&1; then
-            echo "Release ${{ env.version }} already exists."
-            exit 1
-          else
+          if ! gh release view ${{ env.version }} -R ${{ github.repository }} > /dev/null 2>&1; then
             echo "Release ${{ env.version }} does not exist. Continuing with the build."
+            echo "build=1" >> $GITHUB_ENV
           fi
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Code
+        if: env.build == '1'
         uses: actions/checkout@v4
         with:
           path: main
 
       - name: Checkout CPython
+        if: env.build == '1'
         uses: actions/checkout@v4
         with:
           repository: python/cpython
@@ -45,6 +47,7 @@ jobs:
           path: cpython
 
       - name: Reset Config
+        if: env.build == '1'
         run: |
           sed -i 's@ --dirty@@g' PCbuild/pythoncore.vcxproj
           sed -i 's@--precompile@--precompile --include-pip --include-tcltk@g' Tools/msi/make_zip.proj
@@ -53,17 +56,43 @@ jobs:
         working-directory: cpython
 
       - name: Create embed layout
+        if: env.build == '1'
         run: |
           Tools\\msi\\buildrelease.bat -x64 --skip-doc --skip-pgo --skip-msi --skip-nuget
         working-directory: cpython
 
       - name: Move embed layout
+        if: env.build == '1'
         run: |
           $source = 'cpython\\PCbuild\\amd64\\en-us'
           $destination = 'main\\dist'
           Move-Item -Path $source -Destination $destination -Force
 
+      - name: Setup Python
+        if: matrix.version == '3.11' && env.build == '1'
+        run: |
+          New-Item -Path 'C:\Program Files\JumpServer\applications' -ItemType "directory"
+          Expand-Archive -LiteralPath 'dist\python-${{ env.version }}-embed-amd64.zip' -DestinationPath 'C:\Program Files\JumpServer\applications\Python'
+          Remove-Item 'C:\Program Files\JumpServer\applications\Python\python*._pth' -Force
+        working-directory: main
+
+      - name: Install Packages
+        if: matrix.version == '3.11' && env.build == '1'
+        run: |
+          $Env:PYTHONPATH='.\packages;.\Lib\site-packages'
+          Invoke-WebRequest -Uri https://github.com/jumpserver/docker-web/raw/refs/heads/master/requirements.txt -OutFile requirements.txt
+          .\python.exe -m pip install -r requirements.txt
+          Remove-Item requirements.txt
+        working-directory: 'C:\Program Files\JumpServer\applications\Python'
+
+      - name: Create Zip
+        if: matrix.version == '3.11' && env.build == '1'
+        run: |
+          7z a -tzip 'dist\jumpserver-tinker-python-${{ env.version }}-win64.zip' 'C:\Program Files\JumpServer\applications\Python'
+        working-directory: main
+
       - name: Create Tag
+        if: env.build == '1'
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
@@ -74,6 +103,7 @@ jobs:
         working-directory: main
 
       - name: Create Release
+        if: env.build == '1'
         run: |
           latestFlag=""
           if [ "${{ env.version }}" != "${{ matrix.latest_version }}" ]; then

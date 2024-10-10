@@ -11,8 +11,8 @@ jobs:
     strategy:
       matrix:
         name: [python]
-        version: ['3.11', '3.12']
-        latest_version: ['3.12']
+        version: ['3.11', '3.12', '3.13']
+        latest_version: ['3.13']
     steps:
       - name: Get version
         run: |
@@ -31,6 +31,8 @@ jobs:
             echo "Release ${{ env.version }} does not exist. Continuing with the build."
           fi
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -62,6 +64,29 @@ jobs:
           $source = 'cpython\\PCbuild\\amd64\\en-us'
           $destination = 'main\\dist'
           Move-Item -Path $source -Destination $destination -Force
+
+      - name: Setup Python
+        if: matrix.version == '3.11'
+        run: |
+          New-Item -Path 'C:\Program Files\JumpServer\applications' -ItemType "directory"
+          Expand-Archive -LiteralPath 'dist\python-${{ env.version }}-embed-amd64.zip' -DestinationPath 'C:\Program Files\JumpServer\applications\Python'
+          Remove-Item 'C:\Program Files\JumpServer\applications\Python\python*._pth' -Force
+        working-directory: main
+
+      - name: Install Packages
+        if: matrix.version == '3.11'
+        run: |
+          $Env:PYTHONPATH='.\packages;.\Lib\site-packages'
+          Invoke-WebRequest -Uri https://github.com/jumpserver/docker-web/raw/refs/heads/master/requirements.txt -OutFile requirements.txt
+          .\python.exe -m pip install -r requirements.txt
+          Remove-Item requirements.txt
+        working-directory: 'C:\Program Files\JumpServer\applications\Python'
+
+      - name: Create Zip
+        if: matrix.version == '3.11'
+        run: |
+          7z a -tzip 'dist\jumpserver-tinker-python-${{ env.version }}-win64.zip' 'C:\Program Files\JumpServer\applications\Python'
+        working-directory: main
 
       - name: Create Tag
         run: |

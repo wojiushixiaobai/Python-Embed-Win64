@@ -1,9 +1,7 @@
-name: Python for Embed Release Version
+name: Custom Build
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 1 * * *'
 
 env:
   latest_version: '3.13'
@@ -16,6 +14,18 @@ jobs:
       matrix:
         version: ['3.9', '3.10', '3.11', '3.12', '3.13']
         arch: ['x86', 'x64']
+        include:
+          - version: '3.11'
+            arch: 'arm64'
+          - version: '3.12'
+            arch: 'arm64'
+          - version: '3.13'
+            arch: 'arm64'
+        exclude:
+          - version: '3.9'
+            arch: 'arm64'
+          - version: '3.10'
+            arch: 'arm64'
 
     steps:
       - name: Get version
@@ -30,24 +40,12 @@ jobs:
           Write-Output "tag=v$version" >> $env:GITHUB_ENV
           Write-Output "Current version is $version"
 
-      - name: Check Release
-        run: |
-          if ! gh release view ${{ env.version }} -R ${{ github.repository }} > /dev/null 2>&1; then
-            echo "Release ${{ env.version }} does not exist. Continuing with the build."
-            echo "build=1" >> $GITHUB_ENV
-          fi
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Checkout Code
-        if: env.build == '1'
         uses: actions/checkout@v4
         with:
           path: main
 
       - name: Checkout CPython
-        if: env.build == '1'
         uses: actions/checkout@v4
         with:
           repository: python/cpython
@@ -55,7 +53,6 @@ jobs:
           path: cpython
 
       - name: Reset Config
-        if: env.build == '1'
         run: |
           sed -i 's@ --dirty@@g' PCbuild/pythoncore.vcxproj
           sed -i 's@--precompile@--precompile --include-pip --include-tcltk@g' Tools/msi/make_zip.proj
@@ -64,13 +61,11 @@ jobs:
         working-directory: cpython
 
       - name: Create embed layout
-        if: env.build == '1'
         run: |
           Tools\\msi\\buildrelease.bat -${{ matrix.arch }} --skip-doc --skip-pgo --skip-msi --skip-nuget
         working-directory: cpython
 
       - name: Move embed layout
-        if: env.build == '1'
         run: |
           $arch = '${{ matrix.arch }}'
           $source = switch ($arch) {
@@ -82,7 +77,6 @@ jobs:
           Move-Item -Path $source -Destination $destination -Force
 
       - name: Create Tag
-        if: env.build == '1'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -93,7 +87,6 @@ jobs:
         working-directory: main
 
       - name: Create Release
-        if: env.build == '1'
         run: |
           latestFlag=""
           if [ "${{ matrix.version }}" != "${{ env.latest_version }}" ]; then

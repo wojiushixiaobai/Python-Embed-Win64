@@ -8,19 +8,23 @@ env:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         version: ['3.9', '3.10', '3.11', '3.12', '3.13']
         arch: ['x86', 'x64']
+        os: ['windows-latest']
         include:
           - version: '3.11'
             arch: 'arm64'
+            os: 'windows-11-arm'
           - version: '3.12'
             arch: 'arm64'
+            os: 'windows-11-arm'
           - version: '3.13'
             arch: 'arm64'
+            os: 'windows-11-arm'
         exclude:
           - version: '3.9'
             arch: 'arm64'

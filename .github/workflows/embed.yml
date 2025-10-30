@@ -6,7 +6,7 @@ on:
     - cron: '0 1 * * *'
 
 env:
-  latest_version: '3.13'
+  latest_version: '3.14'
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
         arch: ['x86', 'x64']
 
     steps:
@@ -42,13 +42,13 @@ jobs:
 
       - name: Checkout Code
         if: env.build == '1'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: main
 
       - name: Checkout CPython
         if: env.build == '1'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: python/cpython
           ref: ${{ env.tag }}

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  latest_version: '3.13'
+  latest_version: '3.14'
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
         arch: ['x86', 'x64']
         os: ['windows-latest']
         include:
@@ -23,6 +23,9 @@ jobs:
             arch: 'arm64'
             os: 'windows-11-arm'
           - version: '3.13'
+            arch: 'arm64'
+            os: 'windows-11-arm'
+          - version: '3.14'
             arch: 'arm64'
             os: 'windows-11-arm'
         exclude:
@@ -45,12 +48,12 @@ jobs:
           Write-Output "Current version is $version"
 
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: main
 
       - name: Checkout CPython
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: python/cpython
           ref: ${{ env.tag }}

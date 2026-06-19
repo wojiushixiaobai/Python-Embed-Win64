@@ -10,7 +10,7 @@ env:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
@@ -42,13 +42,13 @@ jobs:
 
       - name: Checkout Code
         if: env.build == '1'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: main
 
       - name: Checkout CPython
         if: env.build == '1'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: python/cpython
           ref: ${{ env.tag }}

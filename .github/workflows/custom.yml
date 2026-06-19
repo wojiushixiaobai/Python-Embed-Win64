@@ -14,7 +14,7 @@ jobs:
       matrix:
         version: ['3.10', '3.11', '3.12', '3.13', '3.14']
         arch: ['x86', 'x64']
-        os: ['windows-latest']
+        os: ['windows-2022']
         include:
           - version: '3.11'
             arch: 'arm64'

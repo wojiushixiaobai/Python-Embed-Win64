@@ -6,7 +6,7 @@ on:
     - cron: '0 1 * * *'
 
 env:
-  latest_version: '3.14'
+  latest_version: '3.15'
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['3.11', '3.12', '3.13', '3.14']
+        version: ['3.11', '3.12', '3.13', '3.14', '3.15']
         arch: ['x86', 'x64']
 
     steps:

@@ -28,9 +28,6 @@ jobs:
           - version: '3.14'
             arch: 'arm64'
             os: 'windows-11-arm'
-        exclude:
-          - version: '3.10'
-            arch: 'arm64'
 
     steps:
       - name: Get version
@@ -46,12 +43,12 @@ jobs:
           Write-Output "Current version is $version"
 
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: main
 
       - name: Checkout CPython
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: python/cpython
           ref: ${{ env.tag }}
